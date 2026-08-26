@@ -11,7 +11,7 @@ const client = new Client({
 });
 
 const WORK_DIR = '/root';
-const DASHBOARD_URL = 'http://localhost:3000/report';
+const DASHBOARD_URL = 'http://127.0.0.1:3000/report';
 
 const CHANNEL_AGENTS = {
   '1490287319167537234': 'market-intelligence-analyst',
