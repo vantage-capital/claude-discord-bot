@@ -1,0 +1,44 @@
+name: Deploy
+
+# Deploys main to the Azure app host (hub.vantagecapital.me, 20.74.177.180).
+#
+# How: Actions -> Deploy -> Run workflow (branch: main).
+# (This repo has no CI workflow yet, so nothing gates the deploy but main itself.)
+# The self-hosted runner that lives ON the app host (label app-host) then runs
+#   sudo /usr/local/sbin/vantage-deploy <repo> <commit> <actor>
+# Nothing connects in to the server: the runner polls GitHub over HTTPS.
+#
+# Guard rails: vantage-deploy is the runner's only root command. It deploys only a
+# commit on origin/main, runs this repo's fixed steps, checks the app is up, and logs
+# who deployed what to /var/log/vantage-deploy.log. Everything stays off unless the
+# org variable DEPLOY_ENABLED is 'true'. Source: vantage-capital/vantage-infra,
+# app-host/deploy/.
+#
+# Manual only, no push trigger: this org is on GitHub Free, where the `production`
+# environment cannot enforce a required reviewer, so deploy-on-merge would have no
+# approval step. On GitHub Team: add `push: branches: [main]` and a required reviewer.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-app-host-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to the Azure app host
+    if: vars.DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, app-host]
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - name: Deploy this commit
+        env:
+          REPO: ${{ github.event.repository.name }}
+          SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+        run: sudo /usr/local/sbin/vantage-deploy "$REPO" "$SHA" "$ACTOR"
