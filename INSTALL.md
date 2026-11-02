@@ -80,8 +80,14 @@ Required variables:
 
     DISCORD_TOKEN=<your bot token>
 
-(Optional: anything else your subagents need at run time, e.g. Airtable
-or Anthropic keys — currently configured via the `claude` CLI auth itself.)
+(Optional: anything else your subagents need at run time, e.g. Anthropic
+keys — currently configured via the `claude` CLI auth itself.)
+
+The bot lets the agents use Read, Write, Bash, WebSearch and WebFetch only.
+The Airtable MCP tools are gone (the firm has left Airtable): remove the
+`airtable` MCP server from root's Claude config (`claude mcp remove airtable`)
+and any `mcp__airtable__*` tool or Airtable instruction from the subagent
+files in `/root/.claude/agents/`.
 
 ## 7. Update channel IDs
 

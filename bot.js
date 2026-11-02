@@ -35,8 +35,8 @@ const GENERAL_CHANNEL = '1489140389465165947';
 
 async function runAgent(agentName, prompt) {
   return new Promise((resolve, reject) => {
-    const AIRTABLE_TOOLS = "mcp__airtable__list_records_for_table,mcp__airtable__search_records,mcp__airtable__list_tables_for_base,mcp__airtable__get_table_schema,mcp__airtable__list_bases,mcp__airtable__list_bases";
-    const cmd = `cd ${WORK_DIR} && claude -p "Use the ${agentName} to: ${prompt}" --allowedTools "Read,Write,Bash,WebSearch,WebFetch,${AIRTABLE_TOOLS}" --output-format json < /dev/null`;
+    // No Airtable MCP tools: the firm has left Airtable. The CRM has no read tool for agents yet.
+    const cmd = `cd ${WORK_DIR} && claude -p "Use the ${agentName} to: ${prompt}" --allowedTools "Read,Write,Bash,WebSearch,WebFetch" --output-format json < /dev/null`;
     exec(cmd, { timeout: 900000 }, (error, stdout, stderr) => {
       if (error) return reject(stderr || error.message);
       try {
