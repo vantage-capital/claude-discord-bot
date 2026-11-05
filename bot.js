@@ -1,6 +1,6 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 
 const client = new Client({
   intents: [
@@ -33,11 +33,22 @@ const CHANNEL_COLORS = {
 
 const GENERAL_CHANNEL = '1489140389465165947';
 
+// No Airtable MCP tools: the firm has left Airtable. The agents read the CRM with the Hub's crm-read.js, as the
+// scheduled agents do (intelligence-hub scheduler/run_agent.sh, CRM_NOTE), whatever their own definitions in
+// /root/.claude/agents still say about Airtable.
+const CRM_READ = '/root/dashboard/scheduler/crm-read.js';
+const CRM_NOTE = 'The firm\'s CRM (clients in MFP Database, Trades, Meeting Notes, Pending Log, Documents and the other ' +
+  'tables) is not in Airtable and there are no Airtable tools. Read it, read-only, with Bash: ' +
+  `'node ${CRM_READ} tables' lists the tables; ` +
+  `'node ${CRM_READ} "<table name>" --search <text> --fields "<A>,<B>" --limit <n>' prints records as JSON by field ` +
+  'name. Never try to write to the CRM.';
+
 async function runAgent(agentName, prompt) {
   return new Promise((resolve, reject) => {
-    const AIRTABLE_TOOLS = "mcp__airtable__list_records_for_table,mcp__airtable__search_records,mcp__airtable__list_tables_for_base,mcp__airtable__get_table_schema,mcp__airtable__list_bases,mcp__airtable__list_bases";
-    const cmd = `cd ${WORK_DIR} && claude -p "Use the ${agentName} to: ${prompt}" --allowedTools "Read,Write,Bash,WebSearch,WebFetch,${AIRTABLE_TOOLS}" --output-format json < /dev/null`;
-    exec(cmd, { timeout: 900000 }, (error, stdout, stderr) => {
+    // The Discord message goes to claude as one argument, never through a shell: until 2026-11-05 it was pasted
+    // into a `sh -c` line inside double quotes, so a message with a quote in it ran as a command, as root.
+    const args = ['-p', `Use the ${agentName} to: ${prompt}\n\n${CRM_NOTE}`, '--allowedTools', 'Read,Write,Bash,WebSearch,WebFetch', '--output-format', 'json'];
+    const child = execFile('claude', args, { cwd: WORK_DIR, timeout: 900000, maxBuffer: 32 * 1024 * 1024 }, (error, stdout, stderr) => {
       if (error) return reject(stderr || error.message);
       try {
         const result = JSON.parse(stdout);
@@ -46,6 +57,8 @@ async function runAgent(agentName, prompt) {
         reject('Failed to parse response');
       }
     });
+    // As `< /dev/null` did: claude -p must not wait for input.
+    child.stdin.end();
   });
 }
 
