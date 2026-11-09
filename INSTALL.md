@@ -14,10 +14,15 @@ channel routes to a specific Claude Code subagent name.
 - Ubuntu 24.04 LTS, root
 - Node.js 20+, npm
 - pm2 installed globally
-- **Claude Code CLI** installed and authenticated as the root user
-  (`claude --version` must work for root)
-- **Custom subagents** defined at `/root/.claude/agents/*.md` for each
-  agent name referenced in `bot.js`:
+- **The Hub's agent runner** installed: `intelligence-hub`'s
+  `scheduler/agent-user/install.sh` (it makes the user `hub-agent` and
+  `/usr/local/lib/hub-agent/agent-run.sh`). The bot runs every agent
+  through it, as `hub-agent`, never as root; without it every request
+  fails with "the agent runner ... is not installed".
+- **Custom subagents** for each agent name referenced in `bot.js`, in
+  `/root/.claude/agents/*.md` and copied for `hub-agent` by
+  `intelligence-hub`'s `scheduler/agent-user/agent-defs.py --apply`
+  (the agents read `/home/hub-agent/.claude/agents`, root-owned):
   - `market-intelligence-analyst.md`
   - `investment-recommendation.md`
   - `client-intelligence-briefer.md`
@@ -83,11 +88,14 @@ Required variables:
 (Optional: anything else your subagents need at run time, e.g. Anthropic
 keys — currently configured via the `claude` CLI auth itself.)
 
-The bot lets the agents use Read, Write, Bash, WebSearch and WebFetch only.
-The Airtable MCP tools are gone (the firm has left Airtable): remove the
-`airtable` MCP server from root's Claude config (`claude mcp remove airtable`)
-and any `mcp__airtable__*` tool or Airtable instruction from the subagent
-files in `/root/.claude/agents/`.
+The bot runs the agents through `/usr/local/lib/hub-agent/agent-run.sh`
+(override with `HUB_AGENT_RUN`), which drops to the user `hub-agent` with
+an empty environment: the agent cannot read this `.env`, the Hub's or
+vantage-api's. It lets the agents use Read, Write, Bash, WebSearch and
+WebFetch only, and they read the CRM with
+`/usr/local/lib/hub-agent/crm/crm-read.js` and a reader token (GET on the
+tables, nothing else). The Claude Code credential they use is
+`hub-agent`'s, in `/etc/hub-agent/agent.env`, not root's login.
 
 ## 7. Update channel IDs
 
@@ -126,7 +134,11 @@ bot should respond with an embed and POST the report to the dashboard.
 ### Logs
     sudo pm2 logs discord-bot
 
+### Tests
+    npm test
+
 ### Add or change a subagent
 1. Edit `/root/.claude/agents/<name>.md`
 2. Re-back-up the agents tarball
-3. Restart the bot if necessary
+3. `sudo python3 /root/dashboard/scheduler/agent-user/agent-defs.py`
+   (review), then `--apply`: the agents read hub-agent's copies
